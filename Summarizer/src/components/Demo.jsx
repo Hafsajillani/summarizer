@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 
 import { copy, linkIcon, loader, tick } from "../assets";
-import { getSummary } from "../services/article";
+import { useLazyGetSummaryQuery } from "../services/article";
 
 const Demo = () => {
   const [article, setArticle] = useState({
@@ -10,8 +10,9 @@ const Demo = () => {
   });
   const [allArticles, setAllArticles] = useState([]);
   const [copied, setCopied] = useState("");
-  const [isFetching, setIsFetching] = useState(false);
-  const [error, setError] = useState(null);
+
+  // RTK lazy query
+  const [getSummary, { error, isFetching }] = useLazyGetSummaryQuery();
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -26,7 +27,6 @@ const Demo = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
 
     const existingArticle = allArticles.find(
       (item) => item.url === article.url
@@ -34,22 +34,15 @@ const Demo = () => {
 
     if (existingArticle) return setArticle(existingArticle);
 
-    setIsFetching(true);
-    try {
-      const summary = await getSummary(article.url);
-      if (summary) {
-        const newArticle = { ...article, summary };
-        const updatedAllArticles = [newArticle, ...allArticles];
+    const { data } = await getSummary({ articleUrl: article.url });
+    if (data?.summary) {
+      const newArticle = { ...article, summary: data.summary };
+      const updatedAllArticles = [newArticle, ...allArticles];
 
-        // update state and local storage
-        setArticle(newArticle);
-        setAllArticles(updatedAllArticles);
-        localStorage.setItem("articles", JSON.stringify(updatedAllArticles));
-      }
-    } catch (err) {
-      setError(err);
-    } finally {
-      setIsFetching(false);
+      // update state and local storage
+      setArticle(newArticle);
+      setAllArticles(updatedAllArticles);
+      localStorage.setItem("articles", JSON.stringify(updatedAllArticles));
     }
   };
 
@@ -87,7 +80,7 @@ const Demo = () => {
             onChange={(e) => setArticle({ ...article, url: e.target.value })}
             onKeyDown={handleKeyDown}
             required
-            className="url_input peer"
+            className="url_input peer" // When you need to style an element based on the state of a sibling element, mark the sibling with the peer class, and use peer-* modifiers to style the target element
           />
           <button
             type="submit"
@@ -129,7 +122,7 @@ const Demo = () => {
             Well, that wasn't supposed to happen...
             <br />
             <span className="font-satoshi font-normal text-gray-700">
-              {error.message || String(error)}
+              {error?.data?.error}
             </span>
           </p>
         ) : (
