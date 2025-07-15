@@ -1,0 +1,1 @@
+// Redux store is not used in this project anymore.
